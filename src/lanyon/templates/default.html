@@ -1,0 +1,21 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+	<title>{{ headers.title }}</title>
+</head>
+<body>
+  <h1>{{ headers.title }}</h1>
+  <p>Published on {{ headers.date|datetimeformat('%a, %d %b %Y') }}</p>
+  {% if headers.tags -%}
+    <p>Tagged as
+    {% for tag in headers.tags %}
+      {{ tag }}{% if not loop.last %}, {% endif %}
+    {% endfor %}</p>
+  {% endif %}
+  <hr />
+  {{ body }}
+</body>
+</html>
