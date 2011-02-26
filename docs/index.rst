@@ -18,4 +18,5 @@ Contents
     headers
     directory_structure
     syntax_highlighting
+    templates
 
