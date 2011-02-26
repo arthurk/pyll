@@ -17,3 +17,5 @@ Contents
     installation
     headers
     directory_structure
+    syntax_highlighting
+
