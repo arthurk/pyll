@@ -1,20 +1,19 @@
-.. Lanyon documentation master file, created by
-   sphinx-quickstart on Sat Feb 26 16:36:10 2011.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+.. _index:
 
-Welcome to Lanyon's documentation!
-==================================
+Welcome to lanyon's documentation!
+=========================================
 
-Contents:
+Lanyon is a static site generator that is available open-source under the
+BSD license. If you'd like to help out, you can fork the project 
+at http://github.com/arthurk/lanyon and report any bugs at
+http://github.com/arthurk/lanyon/issues.
+
+Contents
+--------
 
 .. toctree::
    :maxdepth: 2
 
-Indices and tables
-==================
+   installation
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
 
