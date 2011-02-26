@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
-# lanyon documentation build configuration file, created by
-# sphinx-quickstart on Thu Jul 29 08:50:52 2010.
+# Lanyon documentation build configuration file, created by
+# sphinx-quickstart on Sat Feb 26 16:36:10 2011.
 #
 # This file is execfile()d with the current directory set to its containing dir.
 #
@@ -40,8 +40,8 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'lanyon'
-copyright = u'2010, Arthur Koziel'
+project = u'Lanyon'
+copyright = u'2011, Arthur Koziel'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -164,7 +164,7 @@ html_static_path = ['_static']
 #html_file_suffix = None
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'lanyondoc'
+htmlhelp_basename = 'Lanyondoc'
 
 
 # -- Options for LaTeX output --------------------------------------------------
@@ -178,7 +178,7 @@ htmlhelp_basename = 'lanyondoc'
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-  ('index', 'lanyon.tex', u'lanyon Documentation',
+  ('index', 'Lanyon.tex', u'Lanyon Documentation',
    u'Arthur Koziel', 'manual'),
 ]
 
@@ -211,6 +211,6 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'lanyon', u'lanyon Documentation',
+    ('index', 'lanyon', u'Lanyon Documentation',
      [u'Arthur Koziel'], 1)
 ]

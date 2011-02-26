@@ -1,9 +1,9 @@
-.. lanyon documentation master file, created by
-   sphinx-quickstart on Thu Jul 29 08:50:52 2010.
+.. Lanyon documentation master file, created by
+   sphinx-quickstart on Sat Feb 26 16:36:10 2011.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to lanyon's documentation!
+Welcome to Lanyon's documentation!
 ==================================
 
 Contents:
