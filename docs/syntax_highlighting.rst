@@ -1,4 +1,4 @@
-.. _headers:
+.. _syntax_highlighting:
 
 Syntax Highlighting
 ===================
