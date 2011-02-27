@@ -15,6 +15,7 @@ Contents
     :maxdepth: 2
 
     installation
+    quickstart
     headers
     directory_structure
     syntax_highlighting
