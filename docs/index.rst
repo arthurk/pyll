@@ -20,4 +20,5 @@ Contents
     directory_structure
     syntax_highlighting
     templates
+    patterns
 
