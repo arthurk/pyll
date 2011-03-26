@@ -153,7 +153,8 @@ class MarkdownParser(Parser):
         try:
             import markdown
         except ImportError:
-            raise Exception("The Python markdown library isn't installed.")
+            raise Exception("The Python markdown library isn't installed. " +
+                            "Install with `pip install markdown`")
         else:
             self.text = markdown.markdown(self.text,
                                           ['codehilite(css_class=highlight)'])

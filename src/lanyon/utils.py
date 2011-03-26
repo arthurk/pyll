@@ -7,24 +7,21 @@ import hashlib
 
 def walk_ignore(path):
     "Custom walker that ignores specific filenames"
-    ignores = ('.*', '*~', '#*',)
+    ignores = ('.*', '*~', '#*', '_*',)
     for dirpath, dirnames, filenames in os.walk(path):
         for pattern in ignores:
             filenames[:] = [n for n in filenames if not fnmatch(n, pattern)]
             dirnames[:] = [n for n in dirnames if not fnmatch(n, pattern)]
         yield dirpath, dirnames, filenames
 
-def get_hash_from_path(path, algorithm='md4'):
-    """
-    Returns the hash of the file `path`.
-    """
+def get_hash_from_path(path, algorithm='sha1'):
+    "Returns the hash of the file `path`."
     f = open(path)
     content = f.read()
     f.close()
     m = hashlib.new(algorithm)
     m.update(content)
     return m.hexdigest()
-
 
 def copy_file(src, dst):
     """

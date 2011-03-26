@@ -20,6 +20,8 @@ from lanyon.template import Jinja2Template, TemplateException
 from lanyon.server import LanyonHTTPRequestHandler
 from lanyon.url import registry
 
+LOGGING_LEVELS = {'info': logging.INFO, 'debug': logging.DEBUG}
+
 
 class Site(object):
 
@@ -28,32 +30,6 @@ class Site(object):
         self.articles = []
         self.media = []
 
-    def _get_default_headers(self, path):
-        """
-        Return the default headers for an article.
-
-        `title` - titleized version of the filename
-        `date` - set to ctime. On unix this is the time of the most recent
-                 metadata change; on windows the creation time
-        `status` - set to 'live'
-        `template` - set to 'default.html'
-        `url` - set to "default" rule
-        `slug` - filename or, if the filename is "index", the dirname
-               of the parent directory unless its the top level dir.
-        """
-        root, filename = split(splitext(path)[0])
-        if filename == 'index' and root != self.settings['input_dir']:
-            slug = basename(root)
-        else:
-            slug = filename
-        title = filename.title()
-        try:
-            date = datetime.fromtimestamp(getctime(path))
-        except OSError:
-            # use the current date if the ctime cannot be accessed
-            date = datetime.now()
-        return dict(title=title, date=date, status='live', slug=slug,
-                    template='default.html', url='default')
 
     def _get_output_path(self, url):
         """
@@ -75,13 +51,7 @@ class Site(object):
             output_path = url
         return join(self.settings['output_dir'], output_path)
 
-    def _load_custom_urls(self):
-        """Return custom url patterns."""
-        path = join(self.settings['project_dir'], 'urls.py')
-        try:
-            urls = imp.load_source('urls', path)
-        except IOError:
-            logging.debug('couldn\'t load urls from "%s"', path)
+
 
     def _get_url_func(self, path, url):
         """
@@ -104,67 +74,6 @@ class Site(object):
                 elif 'default' in rules:
                     return rules['default']
 
-    def _parse(self, input_data):
-        self._load_custom_urls()
-        Article = namedtuple('Article',
-                             'headers, body, input_path, output_path, media')
-        for input_dir in input_data:
-            articles, media = input_data[input_dir]
-
-            # special case: media in the root input dir is not
-            # associated with any articles
-            if input_dir == self.settings['input_dir']:
-                self.media = media
-                media = []
-            for path in articles:
-                f = open(path, 'r', encoding='utf8')
-                parser_cls = parser.get_parser_for_filename(path)
-                parser_inst = parser_cls(self.settings, f.read())
-                f.close()
-
-                try:
-                    parsed = parser_inst.parse()
-                except parser.ParserException as parser_error:
-                    logging.error(parser_error)
-                    logging.error('skipping article "%s"', path)
-                    continue
-
-                output_ext = parser_cls.output_ext or splitext(path)[1][1:]
-
-                # replace default headers with headers from the article
-                default_headers = self._get_default_headers(path)
-                headers = dict(default_headers, **parsed[0])
-
-                # don't process drafts and future-dated articles
-                if headers['status'] == 'draft' or \
-                   headers['date'] > datetime.today():
-                    continue
-
-                # resolve custom url pattern
-                url_func = self._get_url_func(path, headers['url'])
-                headers['url'] = url_func(**dict(
-                    path=relpath(path, self.settings['input_dir']),
-                    extension=output_ext,
-                    headers=headers,
-                ))
-                # variable subst
-                substitute_vars = dict(
-                    year=headers['date'].year,
-                    month=headers['date'].strftime('%m'),
-                    day=headers['date'].strftime('%d'),
-                    slug=headers['slug'],
-                    ext=output_ext,
-                )
-                headers['url'] = Template(headers['url']).safe_substitute(
-                                    substitute_vars)
-                output_path = self._get_output_path(headers['url'])
-                self.articles.append(Article(headers=headers,
-                                             body=parsed[1],
-                                             input_path=path,
-                                             output_path=output_path,
-                                             media=media))
-                sys.stdout.write('.')
-        sys.stdout.write('\n')
 
     def _copy_media(self):
         # media that isn't associated with articles
@@ -180,46 +89,6 @@ class Site(object):
                            relpath(medium, dirname(article.input_path)))
                 copy_file(medium, dst)
 
-    def _read_input(self):
-        """
-        Walks through the input dir and separates files into article
-        and media files. Files and directories starting with a dot will
-        be ignored.
-        """
-        data = OrderedDict()
-        for root, dirs, files in walk_ignore(self.settings['input_dir']):
-            articles = []
-            media = []
-
-            # sort files into articles and media
-            for file in files:
-                path = join(root, file)
-                if parser.get_parser_for_filename(path):
-                    articles.append(path)
-                else:
-                    media.append(path)
-
-            if articles:
-                data[root] = (articles, media)
-            elif media:
-                # dir has media file(s) but no articles. check if one of
-                # the parent dirs has an article and associate the media
-                # with it
-                has_parent = False
-                if root != self.settings['input_dir']:
-                    parent_dir = dirname(root)
-                    while parent_dir != self.settings['input_dir']:
-                        if parent_dir in data:
-                            data.setdefault(parent_dir, ([], []))[1].\
-                                    extend(media)
-                            has_parent = True
-                        parent_dir = dirname(parent_dir)
-                # if no parent dir could be found, or the file is in the
-                # root dir associate the files with the root of the input dir
-                if not has_parent:
-                    data.setdefault(self.settings['input_dir'], ([], []))[1].\
-                            extend(media)
-        return data
 
     def _is_public(self, article):
         """Return True if article is public"""
@@ -266,13 +135,161 @@ class Site(object):
             fout.write(rendered)
             fout.close()
 
+    def _read_files(self):
+        """
+        Walks through the project directory and separates files into article
+        and static files.
+        - into parseable files (file extensions for which a parser exists)
+        and static files (file extensions for which no parser exists)
+        """
+        data = OrderedDict()
+        for root, dirs, files in walk_ignore(self.settings['project_dir']):
+            pages = [] # parseable files; rename to (pages)
+            static = [] # rename to (static)
+
+            # check if a parser exists and append to corresponding list
+            for file in files:
+                path = join(root, file)
+                if parser.get_parser_for_filename(path):
+                    pages.append(path)
+                else:
+                    static.append(path)
+
+            # assign static files with pages
+            if pages:
+                data[root] = (pages, static)
+            elif static:
+                # dir has static file(s) but no pages. check if one of
+                # the parent dirs has a page and associate the static files
+                # with it
+                has_parent = False
+                if root != self.settings['project_dir']:
+                    parent_dir = dirname(root)
+                    while parent_dir != self.settings['project_dir']:
+                        if parent_dir in data:
+                            data.setdefault(parent_dir, ([], []))[1].\
+                                    extend(static)
+                            has_parent = True
+                        parent_dir = dirname(parent_dir)
+                # if no parent dir could be found, or the file is in the
+                # root dir associate the files with the root of the project dir
+                if not has_parent:
+                    data.setdefault(self.settings['project_dir'],
+                                    ([], []))[1].extend(static)
+        return data
+
+    def _load_custom_urls(self):
+        "Load custom urls from urls.py"
+        path = join(self.settings['lib_dir'], 'urls.py')
+        if exists(path):
+            try:
+                urls = imp.load_source('urls', path)
+            except IOError:
+                logging.debug('couldn\'t load urls from "%s"', path)
+
+    def _get_default_headers(self, path):
+        """
+        Return the default headers for a page.
+
+        `title` - titleized version of the filename
+        `date` - set to ctime. On unix this is the time of the most recent
+                 metadata change; on windows the creation time. If ctime
+                 cannot be accessed (due to permissions), the current 
+                 time is used.
+        `status` - set to 'live'
+        `template` - set to 'default.html'
+        `url` - set to "default" rule
+        `slug` - filename or, if the filename is "index", the dirname
+               of the parent directory unless its the top level dir.
+        """
+        root, filename = split(splitext(path)[0])
+        if filename == 'index' and root != self.settings['input_dir']:
+            slug = basename(root)
+        else:
+            slug = filename
+        title = filename.title()
+        try:
+            date = datetime.fromtimestamp(getctime(path))
+        except OSError:
+            # use the current date if the ctime cannot be accessed
+            date = datetime.now()
+        return dict(title=title, date=date, status='live', slug=slug,
+                    template='default.html', url='default')
+
+    def _parse(self, input_data):
+        self._load_custom_urls()
+        Page = namedtuple('Page',
+                          'headers, body, input_path, output_path, media')
+        for input_dir in input_data:
+            pages, static = input_data[input_dir]
+            print pages, static
+
+            # special case: static files from the root input dir are not
+            # associated with any pages
+            if input_dir == self.settings['project_dir']:
+                self.static = static
+                static = []
+
+            for path in pages:
+                # initialize parser cls
+                f = open(path, 'r', encoding='utf8')
+                parser_cls = parser.get_parser_for_filename(path)
+                parser_inst = parser_cls(self.settings, f.read())
+                f.close()
+
+                # parse the page
+                try:
+                    parsed = parser_inst.parse()
+                except parser.ParserException as parser_error:
+                    logging.error(parser_error)
+                    logging.error('skipping article "%s"', path)
+                    continue
+
+                output_ext = parser_cls.output_ext or splitext(path)[1][1:]
+
+                # replace default headers with custom headers from page
+                headers = self._get_default_headers(path)
+                headers.update(parsed[0])
+
+                # don't process drafts and future-dated articles
+                if headers['status'] == 'draft' or \
+                   headers['date'] > datetime.today():
+                    continue
+
+                # resolve custom url pattern
+                url_func = self._get_url_func(path, headers['url'])
+                headers['url'] = url_func(**dict(
+                    path=relpath(path, self.settings['input_dir']),
+                    extension=output_ext,
+                    headers=headers,
+                ))
+                # variable subst
+                substitute_vars = dict(
+                    year=headers['date'].year,
+                    month=headers['date'].strftime('%m'),
+                    day=headers['date'].strftime('%d'),
+                    slug=headers['slug'],
+                    ext=output_ext,
+                )
+                headers['url'] = Template(headers['url']).safe_substitute(
+                                    substitute_vars)
+                output_path = self._get_output_path(headers['url'])
+                self.articles.append(Article(headers=headers,
+                                             body=parsed[1],
+                                             input_path=path,
+                                             output_path=output_path,
+                                             media=media))
+                sys.stdout.write('.')
+        sys.stdout.write('\n')
+
     def run(self):
         start_time = time.time()
-        logging.debug("project directory: %s", self.settings['project_dir'])
         logging.debug("reading input files")
-        input_data = self._read_input()
+        input_data = self._read_files()
+        logging.debug("input data %s", input_data)
         logging.debug("parsing files")
         self._parse(input_data)
+        """
         self._sort_articles()
         logging.debug("writing files")
         self._delete_output_dir()
@@ -285,79 +302,44 @@ class Site(object):
             article_count,
             'article' if article_count == 1 else 'articles',
             round(finish_time - start_time, 2)))
+        """
 
 def main():
     # parse options
-    parser = OptionParser(usage="%prog [project_dir]",
-                                   version="%prog " + __version__)
+    parser = OptionParser(usage="%prog", version="%prog " + __version__)
     parser.add_option('--date-format',
                       help='Date format used in articles (default: %Y-%m-%d)',
                       default='%Y-%m-%d')
     parser.add_option('-l', '--logging-level', help='Logging level')
-    parser.add_option('-f', '--logging-file', help='Logging file name')
+    """
     parser.add_option('-p', '--port',
                       help='Webserver port number (default: 8000)',
                       default=8000, type='int')
-    parser.add_option('-o', '--output-dir', help='Output directory',
-                      type='string')
     parser.add_option('-s', '--serve', help='Use local webserver',
                       action="store_true", dest="serve")
     parser.add_option('--noreload', help='Do NOT use the autoreloader',
                       action="store_true", dest="noreload")
+    """
     (options, args) = parser.parse_args()
 
-    try:
-        project_dir = abspath(args[0])
-    except IndexError:
-        project_dir = abspath(getcwd())
+    project_dir = abspath(getcwd())
     settings = {'project_dir': project_dir,
-                'input_dir': join(project_dir, 'input'),
-                'output_dir': join(project_dir, 'output'),
-                'template_dir': join(project_dir, 'templates'),
+                #'input_dir': join(project_dir, 'input'),
+                'output_dir': join(project_dir, '_output'),
+                'template_dir': join(project_dir, '_templates'),
+                'lib_dir': join(project_dir, '_lib'),
                 'build_time': datetime.today(),
                 'date_format': options.date_format}
-    if options.output_dir:
-        settings['output_dir'] = options.output_dir
 
-    # logging
-    LOGGING_LEVELS = {'critical': logging.CRITICAL,
-                      'error': logging.ERROR,
-                      'warning': logging.WARNING,
-                      'info': logging.INFO,
-                      'debug': logging.DEBUG}
+    # configure logging
     logging_level = LOGGING_LEVELS.get(options.logging_level, logging.INFO)
-    logging.basicConfig(level=logging_level, filename=options.logging_file,
+    logging.basicConfig(level=logging_level,
                         format='%(asctime)s %(levelname)s: %(message)s',
                         datefmt='%Y-%m-%d %H:%M:%S')
-    # check if an input directory exists
-    if not exists(settings['input_dir']):
-        print('abort: There is no "input" directory at %s' %
-              settings['project_dir'])
-        sys.exit()
+    logging.debug('default settings %s', settings)
 
     site = Site(settings)
-
-    def runserver(server_class=BaseHTTPServer.HTTPServer,
-                  handler_class=LanyonHTTPRequestHandler,
-                  *args, **kwargs):
-        site.run()
-        handler_class.rootpath = settings['output_dir']
-        server_address = ('', options.port)
-        httpd = server_class(server_address, handler_class)
-        logging.info("serving at port %s", server_address[1])
-        try:
-            httpd.serve_forever()
-        except KeyboardInterrupt:
-            sys.exit(0)
-    if options.serve:
-        if options.noreload:
-            runserver()
-        else:
-            import autoreload
-            autoreload.main(runserver, (), {
-                'paths': (settings['input_dir'], settings['template_dir'])})
-    else:
-        site.run()
+    site.run()
 
 if __name__ == '__main__':
     main()
