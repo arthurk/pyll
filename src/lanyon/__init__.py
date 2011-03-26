@@ -1,2 +1,2 @@
-__version__ = '6'
+__version__ = '7'
 __url__ = 'http://lanyon.readthedocs.org/'
