@@ -30,7 +30,7 @@ def copy_file(src, dst):
     The parent directories for `dst` are created.
 
     To increase performance, this function will check if the file `dst`
-    exists and compare the md4 hash of `src` and `dst`. The file will
+    exists and compare the hash of `src` and `dst`. The file will
     only be copied if the hashes differ.
     """
     try:
