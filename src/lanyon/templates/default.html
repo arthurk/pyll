@@ -4,7 +4,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-	<title>{{ headers.title }}</title>
+	<title>{{ page.title }}</title>
     <style type="text/css">
         body {color:#3C3C3C;font:16px/24px Georgia, serif;width:530px;margin:24px auto;}
         h1 {font-size:42px;line-height:48px;color:#171717;font-weight:400;margin:0 0 24px;}
@@ -13,14 +13,8 @@
     </style>
 </head>
 <body>
-  <h1>{{ headers.title }}</h1>
-  <p class="date">Published on {{ headers.date|datetimeformat('%a, %d %b %Y') }}</p>
-  {% if headers.tags -%}
-    <p>Tagged as
-    {% for tag in headers.tags %}
-      {{ tag }}{% if not loop.last %}, {% endif %}
-    {% endfor %}</p>
-  {% endif %}
-  {{ body }}
+  <h1>{{ page.title }}</h1>
+  <p class="date">Published on {{ page.date|datetimeformat('%a, %d %b %Y') }}</p>
+  {{ page.body }}
 </body>
 </html>

@@ -7,7 +7,8 @@ registry = OrderedDict()
 def get_url(page):
     "Returns the final output url string for `page`"
     urlfunc = get_url_func(page)
-    return urlfunc(page)
+    url = urlfunc(page)
+    return url
 
 def get_url_func(page):
     """

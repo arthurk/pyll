@@ -1,15 +1,12 @@
-import BaseHTTPServer
 from codecs import open
-from collections import defaultdict, namedtuple
 from datetime import datetime
 import imp
 import logging
 from optparse import OptionParser
 from os import makedirs, getcwd
-from os.path import splitext, join, dirname, split, abspath, getctime, isdir,\
+from os.path import splitext, join, dirname, split, abspath, getctime,\
                     basename, exists, relpath, isabs
 from shutil import rmtree
-from string import Template
 import sys
 import time
 
@@ -17,81 +14,19 @@ from lanyon import __version__, parser
 from lanyon.url import get_url
 from lanyon.utils import copy_file, walk_ignore, OrderedDict
 from lanyon.template import Jinja2Template, TemplateException
-from lanyon.server import LanyonHTTPRequestHandler
 
 LOGGING_LEVELS = {'info': logging.INFO, 'debug': logging.DEBUG}
 
 class Site(object):
-
     def __init__(self, settings):
         self.settings = settings
         self.pages = []
         self.static_files = []
 
-    def _copy_media(self):
-        # media that isn't associated with articles
-        for medium in self.media:
-            dst = join(self.settings['output_dir'],
-                       relpath(medium, self.settings['input_dir']))
-            copy_file(medium, dst)
-        # media that is associated with articles
-        for article in self.articles:
-            for medium in article.media:
-                dst = join(self.settings['output_dir'],
-                           dirname(article.output_path),
-                           relpath(medium, dirname(article.input_path)))
-                copy_file(medium, dst)
-
-    def _is_public(self, article):
-        """Return True if article is public"""
-        if article.headers['status'] != 'hidden':
-            return True
-        return False
-
-    def _sort_articles(self):
-        """Sort articles by date (newest first)"""
-        self.articles.sort(key=lambda x: x.headers['date'], reverse=True)
-
-    def _delete_output_dir(self):
-        """Delete the output directory"""
-        if exists(self.settings['output_dir']):
-            rmtree(self.settings['output_dir'])
-
-    def _write(self):
-        public_articles = filter(self._is_public, self.articles)
-        template_cls = Jinja2Template(self.settings)
-        for article in self.articles:
-            try:
-                makedirs(dirname(article.output_path))
-            except OSError:
-                pass
-            if article.headers['template'] == 'self':
-                render_func = template_cls.render_string
-                template = article.body
-            else:
-                render_func = template_cls.render
-                template = article.headers['template']
-            try:
-                rendered = render_func(template,
-                                       body=article.body,
-                                       headers=article.headers,
-                                       articles=public_articles,
-                                       settings=self.settings)
-            except TemplateException as error:
-                logging.error(error)
-                logging.error('skipping article "%s"', article.input_path)
-                continue
-            logging.debug("writing %s to %s", article.input_path,
-                                              article.output_path)
-            fout = open(article.output_path, 'w', 'utf-8')
-            fout.write(rendered)
-            fout.close()
-
     def _read_files(self):
         """
-        Walks through the project directory and separates files into article
-        and static files.
-        - into parseable files (file extensions for which a parser exists)
+        Walks through the project directory and separates files into 
+        parseable files (file extensions for which a parser exists)
         and static files (file extensions for which no parser exists)
         """
         data = OrderedDict()
@@ -164,26 +99,6 @@ class Site(object):
                     slug=slug, template='default.html', url='default',
                     output_ext=output_ext)
 
-    def _get_output_path(self, url):
-        """
-        Returns the absolute output path for a page.
-
-        Keyword arguments:
-            url -- the parsed "url" header
-        """
-        if isabs(url):
-            # omit starting slash char; if we wouldn't do this, the
-            # join() below would return a path that starts from 
-            # the root of the filesystem instead of the output_dir.
-            url = url[1:]
-        if not basename(url):
-            # url is a directory -> write to 'index.html'
-            output_path = join(url, 'index.html')
-        else:
-            # url is a filename
-            output_path = url
-        return join(self.settings['output_dir'], output_path)
-
     def _parse(self, input_data):
         "Parses the input data"
         for input_dir in input_data:
@@ -193,10 +108,10 @@ class Site(object):
             # are not associated with any pages
             if input_dir == self.settings['project_dir']:
                 self.static_files = static_files
-                static = []
+                static_files = []
 
             for path in pages:
-                page = dict(static_files=static_files,)
+                page = dict(static_files=static_files)
                 page.update(self._get_default_headers(path))
 
                 # parse the page
@@ -225,48 +140,109 @@ class Site(object):
                     logging.debug('skipping %s (future-dated)', path)
                     continue
                 
-                # resolve url pattern
+                # update the url
                 page['url'] = get_url(page)
-
-                # substitute variables in url pattern
-                substitute_vars = dict(
-                    year=page['date'].year,
-                    month=page['date'].strftime('%m'),
-                    day=page['date'].strftime('%d'),
-                    slug=page['slug'],
-                    ext=page['output_ext'],
-                )
-                tmpl = Template(page['url'])
-                page['url'] = tmpl.safe_substitute(substitute_vars)
-
-                # get the output path for the page
-                #output_path = self._get_output_path(headers['url'])
 
                 self.pages.append(page)
                 sys.stdout.write('.')
         sys.stdout.write('\n')
 
+    def _sort(self):
+        "Sort pages by date (newest first)"
+        self.pages.sort(key=lambda p: p['date'], reverse=True)
+
+    def _delete_output_dir(self):
+        "Deletes the output directory"
+        if exists(self.settings['output_dir']):
+            rmtree(self.settings['output_dir'])
+
+    def _is_public(self, page):
+        "Return True if page is public"
+        return page['status'] != 'hidden'
+
+    def _get_output_path(self, url):
+        "Returns the filesystem path for `url`"
+        if isabs(url):
+            # omit starting slash char; if we wouldn't do this, the
+            # join() below would return a path that starts from 
+            # the root of the filesystem instead of the output_dir.
+            url = url[1:]
+        if not basename(url):
+            # url is a directory -> write to 'index.html'
+            output_path = join(url, 'index.html')
+        else:
+            # url is a filename
+            output_path = url
+        return join(self.settings['output_dir'], output_path)
+
+    def _write(self):
+        "Writes the parsed data to the filesystem"
+        public_pages = filter(self._is_public, self.pages)
+        template_cls = Jinja2Template(self.settings)
+        for page in self.pages:
+            output_path = self._get_output_path(page['url'])
+
+            # create the directories for the page
+            try:
+                makedirs(dirname(output_path))
+            except OSError:
+                pass
+
+            # render template with Jinja2
+            if page['template'] == 'self':
+                render_func = template_cls.render_string
+                template = page['body']
+            else:
+                render_func = template_cls.render
+                template = page['template']
+
+            try:
+                rendered = render_func(template,
+                                       page=page,
+                                       pages=public_pages,
+                                       settings=self.settings)
+            except TemplateException as error:
+                logging.error(error)
+                logging.error('skipping article "%s"', page['path'])
+                continue
+
+            # write to filesystem
+            logging.debug("writing %s to %s", page['path'], output_path)
+            with open(output_path, 'w', 'utf-8') as f:
+                f.write(rendered)
+
+    def _copy_static_files(self):
+        "Copies static files to output directory"
+        # static files that aren't associated with pages
+        for static_file in self.static_files:
+            dst = join(self.settings['output_dir'],
+                       relpath(static_file, self.settings['project_dir']))
+            logging.debug('copying %s to %s', static_file, dst)
+            copy_file(static_file, dst)
+
+        # static files that are associated with pages
+        for page in self.pages:
+            for static_file in page['static_files']:
+                dst = join(self.settings['output_dir'],
+                           dirname(_get_output_path(page['url'])),
+                           relpath(static_file, dirname(page['path'])))
+                logging.debug('copying %s to %s', static_file, dst)
+                copy_file(static_file, dst)
+
     def run(self):
         start_time = time.time()
-        logging.debug("reading input files")
         input_data = self._read_files()
         logging.debug("input data %s", input_data)
-        logging.debug("parsing files")
         self._parse(input_data)
-        """
-        self._sort_articles()
-        logging.debug("writing files")
+        self._sort()
         self._delete_output_dir()
         self._write()
-        self._copy_media()
-        logging.debug("%s articles written", len(self.articles))
+        self._copy_static_files()
         finish_time = time.time()
-        article_count = len(self.articles)
+        count = len(self.pages)
         print("OK (%s %s; %s seconds)" % (
-            article_count,
-            'article' if article_count == 1 else 'articles',
+            count, 'page' if count == 1 else 'pages',
             round(finish_time - start_time, 2)))
-        """
 
 def main():
     parser = OptionParser(version="%prog " + __version__)
@@ -292,7 +268,7 @@ def main():
 
     # import custom urls
     try:
-        urls = imp.load_source('urls', settings['url_path'])
+        imp.load_source('urls', settings['url_path'])
     except IOError as e:
         logging.debug('couldn\'t load urls from "%s": %s',
                       settings['url_path'], e)
