@@ -1,3 +1,4 @@
+import BaseHTTPServer
 from codecs import open
 from datetime import datetime
 import imp
@@ -11,9 +12,10 @@ from shutil import rmtree
 import sys
 import time
 
-from pyll import __version__, parser
+from pyll import __version__, parser, autoreload
 from pyll.url import get_url
 from pyll.utils import copy_file, walk_ignore, OrderedDict
+from pyll.server import LanyonHTTPRequestHandler
 from pyll.template import Jinja2Template, TemplateException
 
 LOGGING_LEVELS = {'info': logging.INFO, 'debug': logging.DEBUG}
@@ -23,6 +25,13 @@ class Site(object):
         self.settings = settings
         self.pages = []
         self.static_files = []
+
+        # import custom urls
+        try:
+            imp.load_source('urls', self.settings['url_path'])
+        except IOError as e:
+            logging.debug('couldn\'t load urls from "%s": %s',
+                          self.settings['url_path'], e)
 
     def _read_files(self):
         """
@@ -280,8 +289,10 @@ def main():
     parser.add_option('--quickstart',
                       help="quickstart a pyll site", action="store_true",
                       dest="quickstart")
-    parser.add_option('-l', '--logging-level',
+    parser.add_option('--logging',
                       help="sets the logging level. 'info' (default) or 'debug'")
+    parser.add_option('--server', help='start a local webserver',
+                      action="store_true", dest="server")
     options, args = parser.parse_args()
 
     try:
@@ -299,7 +310,7 @@ def main():
                 'date_format': '%Y-%m-%d'}
 
     # configure logging
-    logging_level = LOGGING_LEVELS.get(options.logging_level, logging.INFO)
+    logging_level = LOGGING_LEVELS.get(options.logging, logging.INFO)
     logging.basicConfig(level=logging_level,
                         format='%(asctime)s %(levelname)s: %(message)s',
                         datefmt='%Y-%m-%d %H:%M:%S')
@@ -316,16 +327,29 @@ def main():
         settings.update(dict(config.items('pyll')))
     logging.debug('settings %s', settings)
 
-    # import custom urls
-    try:
-        imp.load_source('urls', settings['url_path'])
-    except IOError as e:
-        logging.debug('couldn\'t load urls from "%s": %s',
-                      settings['url_path'], e)
-
     # initialize site
     site = Site(settings)
-    site.run()
+
+    def runserver(server_class=BaseHTTPServer.HTTPServer,
+                  handler_class=LanyonHTTPRequestHandler,
+                  *args, **kwargs):
+        site.run()
+        handler_class.rootpath = settings['output_dir']
+        server_address = ('', 8000)
+        httpd = server_class(server_address, handler_class)
+        logging.info("serving at port %s", server_address[1])
+        try:
+            httpd.serve_forever()
+        except KeyboardInterrupt:
+            sys.exit(0)
+
+    if options.server:
+        autoreload.main(runserver, (), {'paths': (
+            settings['project_dir'],
+            settings['template_dir'],
+            settings['lib_dir'])})
+    else:
+        site.run()
 
 if __name__ == '__main__':
     main()
