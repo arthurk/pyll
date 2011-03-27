@@ -11,7 +11,7 @@ class Jinja2Template(object):
         self.settings = settings
         self.env = Environment(loader=ChoiceLoader([
             FileSystemLoader(self.settings['template_dir']),
-            PackageLoader('lanyon')]))
+            PackageLoader('pyll')]))
         self.env.filters['datetimeformat'] = self.datetimeformat
         self.env.filters['ordinalsuffix'] = self.ordinal_suffix
 

@@ -2,31 +2,33 @@ from imp import load_source
 from os.path import join, dirname, abspath
 from setuptools import setup, find_packages
 
-lanyon_mod = load_source('lanyon', join(dirname(abspath(__file__)),
-                                        'src', 'lanyon', '__init__.py'))
+pyll_mod = load_source('pyll', join(dirname(abspath(__file__)),
+                                    'src', 'pyll', '__init__.py'))
 
 setup(
-    name = 'lanyon',
-    version = lanyon_mod.__version__,
-    url = lanyon_mod.__url__,
+    name = 'pyll',
+    version = pyll_mod.__version__,
+    url = pyll_mod.__url__,
     license = 'BSD',
-    description = 'Static Site Generator',
+    description = 'A Python-Powered Static Site Generator',
     author = 'Arthur Koziel',
 
     packages = find_packages('src'),
     package_dir = {'': 'src'},
-    package_data={'lanyon': ['templates/default.html'],},
+    package_data={'pyll': ['templates/default.html'],},
     zip_safe = False,
 
     test_suite = 'nose.collector',
 
-    # install the lanyon executable
+    # install the pyll executable
     entry_points = {
         'console_scripts': [
-            'lanyon = lanyon.app:main'
+            'pyll = pyll.app:main'
         ]
     },
     install_requires = [
+        'markdown',
+        'docutils',
         'Jinja2',
     ],
 )

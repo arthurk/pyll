@@ -1,7 +1,7 @@
 from fnmatch import fnmatch
 from os.path import splitext, split, relpath
 
-from lanyon.utils import OrderedDict
+from pyll.utils import OrderedDict
 registry = OrderedDict()
 
 def get_url(page):

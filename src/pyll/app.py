@@ -11,10 +11,10 @@ from shutil import rmtree
 import sys
 import time
 
-from lanyon import __version__, parser
-from lanyon.url import get_url
-from lanyon.utils import copy_file, walk_ignore, OrderedDict
-from lanyon.template import Jinja2Template, TemplateException
+from pyll import __version__, parser
+from pyll.url import get_url
+from pyll.utils import copy_file, walk_ignore, OrderedDict
+from pyll.template import Jinja2Template, TemplateException
 
 LOGGING_LEVELS = {'info': logging.INFO, 'debug': logging.DEBUG}
 
@@ -249,15 +249,15 @@ def quickstart(settings):
     login = getlogin()
 
     config = ConfigParser.SafeConfigParser()
-    config.add_section('lanyon')
+    config.add_section('pyll')
     author_name = raw_input("Author Name [%s]: " % login) or login
-    config.set('lanyon', 'author_name', author_name)
+    config.set('pyll', 'author_name', author_name)
     author_email_default = '%s@example.org' % login
     author_email = raw_input("Author Email [%s]: " % author_email_default) or author_email_default
-    config.set('lanyon', 'author_email', author_email)
+    config.set('pyll', 'author_email', author_email)
     website_url_default = 'http://www.example.org'
     website_url = raw_input("Website URL [%s]: " % website_url_default) or website_url_default
-    config.set('lanyon', 'website_url', website_url)
+    config.set('pyll', 'website_url', website_url)
 
     # before writing the settings file, make sure the _lib dir exists
     if not exists(settings['lib_dir']):
@@ -273,12 +273,12 @@ def quickstart(settings):
     tar.extractall(path=settings['project_dir'])
     tar.close()
 
-    return dict(config.items('lanyon'))
+    return dict(config.items('pyll'))
 
 def main():
     parser = OptionParser(version="%prog " + __version__)
     parser.add_option('--quickstart',
-                      help="quickstart a lanyon site", action="store_true",
+                      help="quickstart a pyll site", action="store_true",
                       dest="quickstart")
     parser.add_option('-l', '--logging-level',
                       help="sets the logging level. 'info' (default) or 'debug'")
@@ -313,7 +313,7 @@ def main():
     if exists(settings['settings_path']):
         config = ConfigParser.SafeConfigParser()
         config.read(settings['settings_path'])
-        settings.update(dict(config.items('lanyon')))
+        settings.update(dict(config.items('pyll')))
     logging.debug('settings %s', settings)
 
     # import custom urls
