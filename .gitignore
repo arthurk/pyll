@@ -1,0 +1,4 @@
+ve/
+*.py[co]
+*.egg
+*.egg-info
