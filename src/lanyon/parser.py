@@ -127,7 +127,8 @@ class RstParser(Parser):
             from docutils.core import publish_parts
             from docutils.parsers.rst import directives
         except ImportError:
-            raise Exception("The Python docutils library isn't installed.")
+            raise Exception("The Python docutils library isn't installed. " +
+                            "Install with `pip install docutils`")
         else:
             # if pygments is installed, register the "sourcecode" directive
             try:

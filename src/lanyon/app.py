@@ -2,8 +2,9 @@ from codecs import open
 from datetime import datetime
 import imp
 import logging
+import ConfigParser
 from optparse import OptionParser
-from os import makedirs, getcwd
+from os import makedirs, getcwd, getlogin
 from os.path import splitext, join, dirname, split, abspath, getctime,\
                     basename, exists, relpath, isabs
 from shutil import rmtree
@@ -127,9 +128,9 @@ class Site(object):
                     continue
 
                 # update the values in the page dict
-                page.update(output_ext=parser_cls.output_ext,
-                            body=parsed[1],
-                            **parsed[0])
+                page.update(content=parsed[1], **parsed[0])
+                if parser_cls.output_ext:
+                    page.update(output_ext=parser_cls.output_ext)
 
                 # skip drafts
                 if page['status'] == 'draft':
@@ -191,7 +192,7 @@ class Site(object):
             # render template with Jinja2
             if page['template'] == 'self':
                 render_func = template_cls.render_string
-                template = page['body']
+                template = page['content']
             else:
                 render_func = template_cls.render
                 template = page['template']
@@ -244,18 +245,56 @@ class Site(object):
             count, 'page' if count == 1 else 'pages',
             round(finish_time - start_time, 2)))
 
+def quickstart(settings):
+    login = getlogin()
+
+    config = ConfigParser.SafeConfigParser()
+    config.add_section('lanyon')
+    author_name = raw_input("Author Name [%s]: " % login) or login
+    config.set('lanyon', 'author_name', author_name)
+    author_email_default = '%s@example.org' % login
+    author_email = raw_input("Author Email [%s]: " % author_email_default) or author_email_default
+    config.set('lanyon', 'author_email', author_email)
+    website_url_default = 'http://www.example.org'
+    website_url = raw_input("Website URL [%s]: " % website_url_default) or website_url_default
+    config.set('lanyon', 'website_url', website_url)
+
+    # before writing the settings file, make sure the _lib dir exists
+    if not exists(settings['lib_dir']):
+        makedirs(settings['lib_dir'])
+    
+    with open(settings['settings_path'], 'wb') as configfile:
+        config.write(configfile)
+    
+    # extract template
+    tmpl_path = join(dirname(abspath(__file__)), 'quickstart.tar.gz')
+    import tarfile
+    tar = tarfile.open(tmpl_path)
+    tar.extractall(path=settings['project_dir'])
+    tar.close()
+
+    return dict(config.items('lanyon'))
+
 def main():
     parser = OptionParser(version="%prog " + __version__)
+    parser.add_option('--quickstart',
+                      help="quickstart a lanyon site", action="store_true",
+                      dest="quickstart")
     parser.add_option('-l', '--logging-level',
                       help="sets the logging level. 'info' (default) or 'debug'")
-    (options, args) = parser.parse_args()
+    options, args = parser.parse_args()
 
-    project_dir = abspath(getcwd())
+    try:
+        project_dir = abspath(args[0])
+    except IndexError:
+        project_dir = abspath(getcwd())
+    
     settings = {'project_dir': project_dir,
                 'output_dir': join(project_dir, '_output'),
                 'template_dir': join(project_dir, '_templates'),
                 'lib_dir': join(project_dir, '_lib'),
                 'url_path': join(project_dir, '_lib', 'urls.py'),
+                'settings_path': join(project_dir, '_lib', 'settings.cfg'),
                 'build_time': datetime.today(),
                 'date_format': '%Y-%m-%d'}
 
@@ -264,7 +303,18 @@ def main():
     logging.basicConfig(level=logging_level,
                         format='%(asctime)s %(levelname)s: %(message)s',
                         datefmt='%Y-%m-%d %H:%M:%S')
-    logging.debug('default settings %s', settings)
+    
+    # quickstart
+    if options.quickstart:
+        quickstart(settings)
+        print '\nYour website will be available at %s' % settings['output_dir']
+
+    # read settings file
+    if exists(settings['settings_path']):
+        config = ConfigParser.SafeConfigParser()
+        config.read(settings['settings_path'])
+        settings.update(dict(config.items('lanyon')))
+    logging.debug('settings %s', settings)
 
     # import custom urls
     try:
