@@ -6,7 +6,8 @@ Pyll is a Python-Powered Static Site Generator.
 Installation
 ------------
 
-`pip install pyll`
+Checkout this repo and run `setup.py install`.
+Tested with Python 2.7.
 
 Quickstart
 ----------
