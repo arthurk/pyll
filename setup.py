@@ -30,6 +30,7 @@ setup(
         'markdown',
         'docutils',
         'Jinja2',
+        'python-dateutil==1.5',
     ],
 )
 

@@ -2,6 +2,9 @@ import datetime
 import re
 from os.path import splitext
 
+from dateutil import parser
+
+
 class ParserException(Exception):
     """Exception raised for errors during the parsing."""
     pass
@@ -59,13 +62,10 @@ class Parser(object):
 
     def _parse_date_header(self, value):
         """
-        Parses the date header into a python datetime.datetime object.
-        The value must be in the format as specified by the 'date_format'
-        setting; otherwise a ParserException will be thrown.
+        Parses the date header string into a python datetime object.
         """
-        format = self.settings['date_format']
         try:
-            return datetime.datetime.strptime(value, format)
+            return parser.parse(value)
         except ValueError as error:
             raise ParserException(error)
 
