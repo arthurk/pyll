@@ -54,12 +54,6 @@ class Parser(object):
             pass
         self.text = '\n'.join(lines)
 
-    def _parse_tags_header(self, value):
-        """
-        Parses the value from the 'tags' header into a list.
-        """
-        return [t.strip() for t in value.split(',')]
-
     def _parse_date_header(self, value):
         """
         Parses the date header string into a python datetime object.
@@ -68,9 +62,6 @@ class Parser(object):
             return parser.parse(value)
         except ValueError as error:
             raise ParserException(error)
-
-    def _parse_updated_header(self, value):
-        return self._parse_date_header(value)
 
     def _parse_status_header(self, value):
         """
