@@ -15,7 +15,10 @@ setup(
 
     packages = find_packages('src'),
     package_dir = {'': 'src'},
-    package_data={'pyll': ['templates/default.html'],},
+    package_data={
+        'pyll': ['templates/default.html',
+                 'quickstart.tar.gz'],
+    },
     zip_safe = False,
 
     test_suite = 'nose.collector',
