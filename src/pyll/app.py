@@ -306,8 +306,7 @@ def main():
                 'lib_dir': join(project_dir, '_lib'),
                 'url_path': join(project_dir, '_lib', 'urls.py'),
                 'settings_path': join(project_dir, '_lib', 'settings.cfg'),
-                'build_time': datetime.today(),
-                'date_format': '%Y-%m-%d'}
+                'build_time': datetime.today()}
 
     # configure logging
     logging_level = LOGGING_LEVELS.get(options.logging, logging.INFO)
