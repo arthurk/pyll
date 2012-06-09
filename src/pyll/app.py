@@ -234,7 +234,7 @@ class Site(object):
         for page in self.pages:
             for static_file in page['static_files']:
                 dst = join(self.settings['output_dir'],
-                           dirname(_get_output_path(page['url'])),
+                           dirname(self._get_output_path(page['url'])),
                            relpath(static_file, dirname(page['path'])))
                 logging.debug('copying %s to %s', static_file, dst)
                 copy_file(static_file, dst)
